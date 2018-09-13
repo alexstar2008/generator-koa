@@ -72,7 +72,7 @@ module.exports = class extends Generator {
         data: { name: this.projectName.val }
       },
       { src: 'package-lock.json', dest: 'package-lock.json' },
-      { src: '.eslintrc', dest: '.eslintrc' },
+      { src: '.eslintrc.yml', dest: '.eslintrc.yml' },
       { src: '.gitignore', dest: '.gitignore' },
       { src: '.editorconfig', dest: '.editorconfig' },
     ];
