@@ -9,7 +9,6 @@ module.exports = class extends Generator {
         this.log('-------------------------');
         this.log('|   STARTED GENERATION  |')
         this.log('-------------------------');
-        this.destinationRoot('../');
     }
     async prompting() {
         this.projectName = await this.prompt({
@@ -18,21 +17,15 @@ module.exports = class extends Generator {
             message: 'Project name',
             store: true
         });
+        this.destinationRoot(this.projectName.val);
     }
     writing() {
-        // this.fs.copyTpl(this.templatePath('app.js'),
-        //     this.destinationPath(`${this.projectName.val}/app.js`), {
-
-        //     });
-        // this.fs.copyTpl(this.templatePath('package.json'),
-        //     this.destinationPath(`${this.projectName.val}/package.json`), {
-        //         name: this.projectName.val
-        //     });
         this._loadMiddlewares();
         this._loadConfig();
+        this._loadSettings();
     }
     install() {
-        // this.npmInstall();
+        this.npmInstall();
     }
     end() {
         this.log('-------------------------');
@@ -41,21 +34,42 @@ module.exports = class extends Generator {
     }
 
     _loadMiddlewares() {
-        const middlewareFolder = '/src/middlewares/';
-        const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates${middlewareFolder}`);
+        const middlewareFolder = 'src/middlewares/';
+        const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${middlewareFolder}`);
 
         files.forEach(file => {
-            this.fs.copyTpl(this.templatePath('.' + middlewareFolder + file),
-                this.destinationPath(this.projectName.val + middlewareFolder + file));
+            this.fs.copyTpl(this.templatePath('./' + middlewareFolder + file),
+                this.destinationPath(middlewareFolder + file));
         });
     }
     _loadConfig() {
-        const configFolder = '/config/';
-        const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates${configFolder}`);
+        const configFolder = 'config/';
+        const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${configFolder}`);
 
         files.forEach(file => {
-            this.fs.copyTpl(this.templatePath('.' + configFolder + file),
-                this.destinationPath(this.projectName.val + configFolder + file));
+            this.fs.copyTpl(this.templatePath('./' + configFolder + file),
+                this.destinationPath(configFolder + file));
+        });
+    }
+    _loadSettings() {
+        const settings = [
+            { src: 'Dockerfile', dest: 'Dockerfile' },
+            {
+                src: 'Dockerfile', dest: '.circleci/config.yml',
+                data: { name: this.projectName.val }
+            },
+            { src: 'app.js', dest: `app.js` },
+            {
+                src: 'package.json', dest: 'package.json',
+                data: { name: this.projectName.val }
+            },
+            {
+                src: 'package-lock.json', dest: 'package-lock.json'
+            },
+        ];
+        settings.forEach(({ src, dest, data = {} }) => {
+            this.fs.copyTpl(this.templatePath(src),
+                this.destinationPath(dest), data);
         });
     }
 };
