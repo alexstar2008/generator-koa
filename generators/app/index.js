@@ -11,7 +11,6 @@ module.exports = class extends Generator {
     this.log('-------------------------');
     this.log('|   STARTED GENERATION  |')
     this.log('-------------------------');
-    this.destinationRoot('../');
   }
 
   async prompting() {
@@ -21,16 +20,17 @@ module.exports = class extends Generator {
       message: 'Project name',
       store: true
     });
+    this.destinationRoot(this.projectName.val);
   }
 
   writing() {
     this._loadMiddlewares();
-    // this._loadConfig();
-    // this.__loadCodeStylesConfigs();
+    this._loadConfig();
+    this._loadSettings();
   }
 
   install() {
-    // this.npmInstall();
+    this.npmInstall();
   }
 
   end() {
@@ -40,50 +40,45 @@ module.exports = class extends Generator {
   }
 
   _loadMiddlewares() {
-    const middlewareFolder = '/src/middlewares/';
-    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates${middlewareFolder}`);
+    const middlewareFolder = 'src/middlewares/';
+    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${middlewareFolder}`);
 
     files.forEach(file => {
-      this.fs.copyTpl(this.templatePath('.' + middlewareFolder + file),
-        this.destinationPath(this.projectName.val + middlewareFolder + file));
+      this.fs.copyTpl(this.templatePath('./' + middlewareFolder + file),
+        this.destinationPath(middlewareFolder + file));
     });
   }
 
-  // _loadConfig() {
-  //   const configFolder = '/config/';
-  //   const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates${configFolder}`);
+  _loadConfig() {
+    const configFolder = 'config/';
+    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${configFolder}`);
 
-  //   files.forEach((file) => {
-  //     this.fs.copyTpl(this.templatePath(path.join('./', configFolder, file)),
-  //       this.destinationPath(path.join(this.projectName.val, configFolder, file)));
-  //   });
+    files.forEach(file => {
+      this.fs.copyTpl(this.templatePath('./' + configFolder + file),
+        this.destinationPath(configFolder + file));
+    });
+  }
 
-  //   files.forEach((file) => {
-  //     this.fs.copyTpl(this.templatePath(`./${configFolder}${file}`),
-  //       this.destinationPath(`${this.projectName.val}${configFolder}${file}`));
-  //   });
-  // }
-
-  // _loadCodeStylesConfigs() {
-  //   this.fs.copyTpl(this.templatePath('app.js'),
-  //     this.destinationPath(`${this.projectName.val}/app.js`), {
-
-  //     });
-
-  //   this.fs.copy(
-  //     this.templatePath('./.eslintrc'),
-  //     this.destinationPath('./.eslintrc')
-  //   );
-  //   this.fs.copy(
-  //     this.templatePath('./.editorconfig'),
-  //     this.destnationPath('./.editorconfig')
-  //   );
-  // }
-
-  // _loadGitIgnore() {
-  //   this.fs.copy(
-  //     this.templatePath('./.gitignore'),
-  //     this.destinationPath('./.gitignore')
-  //   );
-  // }
+  _loadSettings() {
+    const settings = [
+      { src: 'Dockerfile', dest: 'Dockerfile' },
+      {
+        src: 'Dockerfile', dest: '.circleci/config.yml',
+        data: { name: this.projectName.val }
+      },
+      { src: 'app.js', dest: `app.js` },
+      {
+        src: 'package.json', dest: 'package.json',
+        data: { name: this.projectName.val }
+      },
+      { src: 'package-lock.json', dest: 'package-lock.json' },
+      { src: '.eslintrc', dest: '.eslintrc' },
+      { src: '.gitignore', dest: '.gitignore' },
+      { src: '.editorconfig', dest: '.editorconfig' },
+    ];
+    settings.forEach(({ src, dest, data = {} }) => {
+      this.fs.copyTpl(this.templatePath(src),
+        this.destinationPath(dest), data);
+    });
+  }
 };

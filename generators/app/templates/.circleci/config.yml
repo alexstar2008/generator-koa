@@ -1,0 +1,123 @@
+version: 2
+
+references:
+
+  container_config: &container_config
+    docker:
+      - image: circleci/node:latest
+    working_directory: ~/circleci-<%= name %>
+
+  restore_npm_cache: &restore_npm_cache
+    restore_cache:
+      name: Restore npm cache
+      key: dependency-npm-{{ .Branch }}-{{ checksum "package.json" }}
+  
+  restore_repo: &restore_repo_cache
+    restore_cache:
+      name: Restore code cache
+      key: repo-{{ .Branch }}-{{ .Revision }} 
+
+jobs:
+  build:
+    <<: *container_config
+    steps:
+      - checkout
+      - save_cache:
+          name: Save code cache
+          key: repo-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .
+      - *restore_npm_cache
+      - run:
+          name: Update requirement dependecies
+          command: npm install
+      - save_cache:
+          name: Save npm cache
+          key: dependency-npm-{{ .Branch }}-{{ checksum "package.json" }}
+          paths:
+            - 'node_modules'
+  test:   
+    <<: *container_config
+    steps:
+      - *restore_repo_cache
+      - *restore_npm_cache
+      - run:
+          name: Test
+          command: npm run test
+      - run:
+          name: Generate code coverage
+          command: './node_modules/.bin/nyc report --reporter=html'
+      - store_artifacts:
+          path: test-results.xml
+          destination: tests
+      - store_artifacts:
+          path: coverage
+          destination: coverage
+  deploy:
+    <<: *container_config
+    steps:
+      - *restore_repo_cache
+      - *restore_npm_cache         
+      - setup_remote_docker
+      - run:
+          name: Deploy to Docker Cloud
+          command: |
+            docker login -u $DOCKER_CLOUD_USERNAME -p $DOCKER_CLOUD_PASSWORD
+            docker build -t $DOCKER_CLOUD_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM .
+            docker push $DOCKER_CLOUD_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
+      - run:
+          name: Install kubectl
+          command: |
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+            chmod +x kubectl
+
+            sudo mv kubectl /usr/local/bin/
+      - run:
+          name: Set deployment for KUBERNETES
+          command: |
+            if [ "$CIRCLE_BRANCH" == "master" ]
+            then
+              echo "export KUBERNETES_DEPLOYMENT=$KUBERNETES_MASTER_DEPLOYMENT" >> env_file
+              echo "Building master"
+            elif [ "$CIRCLE_BRANCH" == "dev" ]
+            then
+              echo "export KUBERNETES_DEPLOYMENT=$KUBERNETES_DEV_DEPLOYMENT" >> env_file
+              echo "Building dev"
+            fi
+            echo $KUBERNETES_DEPLOYMENT
+      - run:
+          name: Deliver to Kubernetes
+          command: |
+            source env_file
+            kubectl config set-cluster $KUBERNETES_CLUSTER --insecure-skip-tls-verify=true --server=$KUBERNETES_API_SERVER
+            kubectl config set-credentials admin --token=$KUBERNETES_TOKEN
+            kubectl config set-context $KUBERNETES_CLUSTER --cluster=$KUBERNETES_CLUSTER --user=admin
+            kubectl config use-context $KUBERNETES_CLUSTER
+            kubectl cluster-info
+            kubectl get pods
+            kubectl set image deployment/$KUBERNETES_DEPLOYMENT $CONTAINER_NAME=$DOCKER_CLOUD_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
+workflows:
+  version: 2
+  development_deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - dev     
+      - test:
+          requires:
+            - build
+      - deploy:
+          requires:
+            - test
+  production_deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+      - deploy:
+          requires:
+            - build
