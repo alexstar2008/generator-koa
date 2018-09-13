@@ -12,13 +12,11 @@ const middlewares = fs.readdirSync(path.join(__dirname, 'src/middlewares')).sort
 middlewares.forEach(middleware => app.use(require('./src/middlewares/' + middleware)));
 
 router.get('/healthz', ctx => {
-    ctx.body = 'Combinvest API - OK';
+  ctx.body = 'Combinvest API - OK';
 });
 
 app.use(router.routes());
 
-module.exports = app.listen(onfig.PORT, () => {
-    console.log(`SERVER is listening on port:${config.PORT}`);
+module.exports = app.listen(config.PORT, () => {
+  console.log(`SERVER is listening on port:${config.PORT}`);
 });
-
-
