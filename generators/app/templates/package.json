@@ -1,0 +1,42 @@
+{
+  "name": "<%= name %>",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "main": "app.js",
+  "scripts": {
+    "lint": "eslint . --quiet",
+    "report": "./node_modules/.bin/nyc report --reporter=html",
+    "serve": "nodemon app",
+    "test": "NODE_ENV=test ./node_modules/.bin/nyc --reporter=html  ./node_modules/.bin/mocha  --exit --timeout 15000 --recursive $(find app -name '*test.js')"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.237.1",
+    "config": "^1.28.1",
+    "jwt-simple": "^0.5.1",
+    "kcors": "^2.2.1",
+    "koa": "^2.5.1",
+    "koa-body": "^2.5.0",
+    "koa-context-validator": "^0.3.0",
+    "koa-logger": "^3.1.0",
+    "koa-passport": "^3.0.0",
+    "koa-router": "^7.3.0",
+    "koa-static": "^3.0.0",
+    "koa2-swagger-ui": "^2.9.3",
+    "mongoose": "4.10.5",
+    "mongoose-beautiful-unique-validation": "^5.1.1",
+    "passport-facebook": "^2.1.1",
+    "passport-google-oauth20": "^1.0.0",
+    "passport-jwt": "^2.2.1",
+    "passport-local": "^1.0.0"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "chai-http": "^3.0.0",
+    "eslint": "^4.19.1",
+    "mocha": "^5.1.1",
+    "nodemon": "^1.17.4",
+    "nyc": "^11.7.3"
+  }
+}
