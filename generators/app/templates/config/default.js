@@ -1,13 +1,15 @@
 module.exports = {
     PORT: 3000,
+    // <%if (includeMongo) { %>
     mongoose: {
         uri: '',
     },
+    // <% } %>
     jwtsecret: '',
     crypto: {
         hash: {
             length: 128,
-            iterations: 1
+               iterations: 1
         },
     },
     password: { length: 10, numbers: true },

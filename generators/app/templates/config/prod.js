@@ -1,7 +1,9 @@
 module.exports = {
+    // <% if (includeMongo) { %>
     mongoose: {
         uri: ''
     },
+    // <% } %>
     jwtsecret: '',
     crypto: {
         hash: {

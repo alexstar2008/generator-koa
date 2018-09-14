@@ -14,23 +14,30 @@ module.exports = class extends Generator {
   }
 
   async prompting() {
-    this.projectName = await this.prompt({
-      type: 'input',
-      name: 'val',
-      message: 'Project name',
-      store: true
-    });
+    this.projectName = await this._projectNamePromt();
     this.destinationRoot(this.projectName.val);
+
+    const dbAnswers = await this._dbPrompt();
+    if (dbAnswers.includeDB.length) {
+      await this._authPromt(dbAnswers);
+    }
   }
 
   writing() {
-    this._loadMiddlewares();
-    this._loadConfig();
+    this._copyDir('src/middlewares/');
+    this._copyDir('config/', { includeMongo: this.includeMongo, includePostgre: this.includePostgre });
     this._loadSettings();
+
+    if (this.includeMongo) {
+      this._copySingle('src/libs/mongoose.js');
+      if (this.includeBasicAuth) {
+        this._copyDir('src/mongo/users/', 'src/users/');
+      }
+    }
   }
 
   install() {
-    this.npmInstall();
+    // this.npmInstall();
   }
 
   end() {
@@ -39,34 +46,49 @@ module.exports = class extends Generator {
     this.log('-------------------------');
   }
 
-  _loadMiddlewares() {
-    const middlewareFolder = 'src/middlewares/';
-    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${middlewareFolder}`);
 
-    files.forEach(file => {
-      this.fs.copyTpl(this.templatePath('./' + middlewareFolder + file),
-        this.destinationPath(middlewareFolder + file));
+  _projectNamePromt() {
+    return this.prompt({
+      type: 'input',
+      name: 'val',
+      message: 'Project name'
     });
   }
 
-  _loadConfig() {
-    const configFolder = 'config/';
-    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${configFolder}`);
-
-    files.forEach(file => {
-      this.fs.copyTpl(this.templatePath('./' + configFolder + file),
-        this.destinationPath(configFolder + file));
+  _dbPrompt() {
+    return this.prompt({
+      type: 'checkbox',
+      name: 'includeDB',
+      message: 'Choose DB config:',
+      choices: [
+        { name: 'MongoDB', value: 'mongo' },
+        { name: 'PostgreSQL', value: 'postgre' }
+      ]
     });
   }
 
+  async _authPromt(dbAnswers) {
+    const auth = await this.prompt([{
+      type: 'confirm',
+      name: 'basicAuth',
+      message: 'Include basic auth?'
+    }]);
+    this.includeMongo = dbAnswers.includeDB.includes('mongo');
+    this.includePostgre = dbAnswers.includeDB.includes('postgre');
+    this.includeBasicAuth = auth.basicAuth;
+  }
+
+
+  //: TODO (reorganize)
   _loadSettings() {
-    const settings = [
+    let settings = [
       { src: 'Dockerfile', dest: 'Dockerfile' },
       {
-        src: 'Dockerfile', dest: '.circleci/config.yml',
+        src: '.circleci/config.yml', dest: '.circleci/config.yml',
         data: { name: this.projectName.val }
       },
       { src: 'app.js', dest: `app.js` },
+      { src: 'src/libs/aws.js', dest: 'src/libs/aws.js' },
       {
         src: 'package.json', dest: 'package.json',
         data: { name: this.projectName.val }
@@ -76,7 +98,30 @@ module.exports = class extends Generator {
       { src: '.gitignore', dest: '.gitignore' },
       { src: '.editorconfig', dest: '.editorconfig' },
     ];
+
     settings.forEach(({ src, dest, data = {} }) => {
+      this.fs.copyTpl(this.templatePath(src),
+        this.destinationPath(dest), data);
+    });
+  }
+
+
+  _copySingle(src, dest, data = {}) {
+    if (dest instanceof Object) {
+      data = dest;
+      dest = src;
+    }
+    this.fs.copyTpl(this.templatePath(src),
+      this.destinationPath(dest || src), data);
+  }
+  _copyDir(srcDirPath, destDirPath, data = {}) {
+    if (destDirPath instanceof Object) {
+      data = destDirPath;
+      destDirPath = srcDirPath;
+    }
+    const files = fs.readdirSync(`${this.contextRoot}/generators/app/templates/${srcDirPath}`);
+    const filesArr = files.map(file => ({ src: srcDirPath + file, dest: (destDirPath || srcDirPath) + file, data }));
+    filesArr.forEach(({ src, dest, data = {} }) => {
       this.fs.copyTpl(this.templatePath(src),
         this.destinationPath(dest), data);
     });
